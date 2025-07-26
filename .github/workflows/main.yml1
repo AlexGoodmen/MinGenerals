@@ -1,0 +1,83 @@
+// commit_lint.cpp
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <cstddef>
+
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        std::cerr << "Usage: commit_lint <commit-msg-file>\n";
+        return 1;
+    }
+
+    // Read entire commit message
+    std::ifstream in(argv[1], std::ios::in | std::ios::binary);
+    if (!in) {
+        std::cerr << "Error: cannot open commit message file.\n";
+        return 1;
+    }
+    std::string msg;
+    std::getline(in, msg, '\0');
+    in.close();
+
+    // Allowed types
+    const std::vector<std::string> types = {
+        "feat", "fix", "docs", "style", "refactor", "test", "chore"
+    };
+
+    // Find the delimiter ": "
+    std::size_t pos = msg.find(": ");
+    if (pos == std::string::npos) {
+        std::cerr << "Error Commit message must be in the format\n"
+                  << "   type: description\n"
+                  << "Example: feat: add new feature\n";
+        return 1;
+    }
+
+    // Extract the 'type' and check it
+    std::string prefix = msg.substr(0, pos);
+    bool ok = false;
+    for (auto &t : types) {
+        if (prefix == t) {
+            ok = true;
+            break;
+        }
+    }
+
+    if (!ok) {
+        std::cerr << "[ERROR] Unknown commit type '" << prefix << "'.\n"
+                  << "Allowed types are: ";
+        for (std::size_t i = 0; i < types.size(); ++i) {
+            std::cerr << types[i]
+                      << (i + 1 < types.size() ? ", " : "\n");
+        }
+        std::cerr << "Example: feat: add new feature\n";
+        return 1;
+    }
+
+    // Also ensure there's something after the ": "
+    if (pos + 2 >= msg.size()) {
+        std::cerr << "ERROR Description is empty. Please add a message after ': '.\n";
+        return 1;
+    }
+
+    // All good
+    return 0;
+}
+
+name: Check Commit Messages
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  commitlint:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Lint commit messages
+        uses: wagoid/commitlint-github-action@v5
