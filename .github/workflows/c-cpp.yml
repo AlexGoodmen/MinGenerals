@@ -1,0 +1,19 @@
+name: Windows C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile project
+        run: |
+          g++ -std=c++17 -Wall -Wextra Generals/Code/Main/WinMain.cpp Generals/Code/Main/*.cpp -IGenerals/Code/Main -IWin32Device/GameClient -o generals.exe
+          
