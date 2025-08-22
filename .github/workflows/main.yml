@@ -1,4 +1,4 @@
-name: Windows C++ Build
+name: C/C++ CI
 
 on:
   push:
@@ -11,18 +11,30 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up MinGW (G++)
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          version: 12.2.0
-          platform: x64
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.1
 
-      - name: Compile with g++
-        run: |
-          g++ -std=c++17 -Wall -Wextra ^
-            WinMain.cpp ^
-            Generals/Code/Main/*.cpp ^
-            -o generals.exe
+    - name: Build with MSBuild
+      run: |
+        msbuild Generals/Code/Main/YourProject.dsp `
+          /p:Configuration=Release `
+          /p:Platform="Win32" `
+          /t:Build `
+          /m `
+          /clp:ErrorsOnly;Summary
+
+    - name: Run static analysis
+      run: |
+        msbuild Generals/Code/Main/YourProject.dsp `
+          /t:Build `
+          /p:RunCodeAnalysis=true `
+          /p:CodeAnalysisRuleSet=AllRules
+
+    - name: Run tests (if available)
+      run: |
+        if exist ".\bin\Release\YourExecutable.exe" (
+          .\bin\Release\YourExecutable.exe --test
+        )
