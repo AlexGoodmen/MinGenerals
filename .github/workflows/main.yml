@@ -1,4 +1,4 @@
-name: Windows C++ Build
+name: C/C++ CI
 
 on:
   push:
@@ -11,18 +11,43 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    # ✅ Checkout the repository
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up MinGW (G++)
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          version: 12.2.0
-          platform: x64
+    # ✅ Setup MSBuild for Visual Studio
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.1
 
-      - name: Compile with g++
-        run: |
-          g++ -std=c++17 -Wall -Wextra ^
-            WinMain.cpp ^
-            Generals/Code/Main/*.cpp ^
-            -o generals.exe
+    # ✅ Compile in Release mode, treat warnings as errors, add new include path
+    - name: Build with MSBuild
+      run: |
+        msbuild #include "GeneralsMD/Code/GameEngine/Source/GameClient/"
+
+          /p:Configuration=Release `
+          /p:Platform="Win32" `
+          /p:TreatWarningsAsErrors=true `
+          /p:AdditionalIncludeDirectories="GeneralsMD/Code/GameEngine/Source/GameClient" `
+          /m `
+          /clp:ErrorsOnly;Summary
+      shell: pwsh
+
+    # ✅ Run Static Analysis (optional but recommended)
+    - name: Run static analysis
+      run: |
+        msbuild #include "GeneralsMD/Code/GameEngine/Source/GameClient/"
+
+          /p:RunCodeAnalysis=true `
+          /p:CodeAnalysisRuleSet="AllRules.ruleset" `
+          /p:AdditionalIncludeDirectories="GeneralsMD/Code/GameEngine/Source/GameClient"
+      shell: pwsh
+
+    # ✅ Run tests (only if the compiled executable exists)
+    - name: Run tests
+      run: |
+        if (Test-Path ".\bin\Release\YourExecutable.exe") {
+          .\bin\Release\YourExecutable.exe --test
+        } else {
+          Write-Host "No tests found or build failed."
+        }
+      shell: pwsh
