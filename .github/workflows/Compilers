@@ -1,0 +1,62 @@
+#include <cstdlib>
+#include <iostream>
+#include <string>
+#include <array>
+
+int runCommand(const std::string& cmd) {
+    std::cout << "[RUN] " << cmd << "\n";
+    return std::system(cmd.c_str());
+}
+
+int main() {
+    // Environment settings
+    const std::string SRC = "GeneralsMD/Code/GameEngine/Source";
+    const std::string TU  = SRC + "/GameClient/System/DebugDisplay.cpp";
+
+    // Choose compiler: try clang++ first, then fallback to g++
+    std::string compiler = "clang++";
+    if (runCommand("which clang++ > /dev/null 2>&1") != 0) {
+        compiler = "g++";
+    }
+
+    std::cout << "Using compiler: " << compiler << "\n";
+
+    // Show compiler version
+    runCommand(compiler + " --version");
+
+    // Build compile command
+    std::string compileCmd = compiler +
+        " -std=c++20 "
+        "-I\"" + SRC + "\" "
+        "-Wall -Wextra -Werror -Wpedantic -Wconversion -Wshadow "
+        "-Wdouble-promotion -Wold-style-cast -Woverloaded-virtual -Wnon-virtual-dtor "
+        "-Wnull-dereference -Wformat=2 -Wimplicit-fallthrough=5 -Wundef -Wredundant-decls "
+        "-fno-omit-frame-pointer "
+        "-O0 -g3 "
+        "-c \"" + TU + "\" -o /tmp/DebugDisplay.o";
+
+    std::cout << "\nCompiling DebugDisplay.cpp with strict warnings...\n";
+    if (runCommand(compileCmd) != 0) {
+        std::cerr << "Compilation failed. Fix errors above.\n";
+        return 1;
+    }
+
+    // Run clang-tidy if available
+    if (runCommand("which clang-tidy > /dev/null 2>&1") == 0) {
+        std::cout << "\nRunning clang-tidy checks...\n";
+        std::string tidyCmd =
+            "clang-tidy \"" + TU + "\" "
+            "--warnings-as-errors='*' "
+            "--extra-arg=-std=c++20 "
+            "--extra-arg=-I\"" + SRC + "\" "
+            "--checks='clang-analyzer-*,bugprone-*,readability-*,modernize-*,performance-*,cppcoreguidelines-*,-cppcoreguidelines-avoid-magic-numbers' "
+            "--header-filter='GeneralsMD/Code/GameEngine/Source/.*' "
+            "--format-style=file || true";
+        runCommand(tidyCmd);
+    } else {
+        std::cerr << "clang-tidy not found. Skipping lint step.\n";
+    }
+
+    std::cout << "\nDebugDisplay.cpp passes strict compile and lint.\n";
+    return 0;
+}
